@@ -1,6 +1,6 @@
 #!/bin/sh
 
-ARGS=`perl -E 'say $_ for 0..10000'`
+ARGS=$(seq 1 10000)
 ghc argparse_getargs.hs
 ghc argparse_cmdargs.hs
 echo "Testing System.Environment.getArgs with 10,000 arguments..."
