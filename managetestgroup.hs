@@ -92,8 +92,12 @@ getGroupId desc con = do
 
 dispatch :: ManageTestGroup -> Connection -> IO ()
 dispatch (CreateGroup desc filenames) con = do
+  putStrLn $ "Creating group '" ++ desc ++ "'."
   gid <- makeGroup desc con
+  putStrLn ("Created group '" ++ desc ++ "'.")
+  putStrLn $ "Adding " ++ (show $ length filenames) ++ " files."
   void $ mapM (addFileToGroup con gid) filenames
+  putStrLn "Added files"
 dispatch (AppendByDesc desc filenames) con = do
   gid <- getGroupId desc con
   void $ mapM (addFileToGroup con gid) filenames
@@ -106,6 +110,8 @@ dispatch (AmendDesc gid desc) con = updateDesc gid desc con
 main :: IO ()
 main = do
   opts <- cmdArgs (modes [createDefaults,appendByDescDefaults, appendByIdDefaults,amendDescDefaults])
+  putStrLn "Parsed arguments."
   con <- getConnectionFromTrunk
+  putStrLn "Got connection."
   withTransaction con $ dispatch opts
 
