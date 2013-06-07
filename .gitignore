@@ -1,3 +1,4 @@
 managetestgroup
 *.o
 *.hi
+gds.sqlite3
