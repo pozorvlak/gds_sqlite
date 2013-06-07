@@ -3,3 +3,5 @@ managetestgroup
 *.hi
 gds.sqlite3
 *.hp
+argparse_cmdargs
+argparse_getargs
