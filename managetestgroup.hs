@@ -5,48 +5,10 @@ module Main where
 import ResultsDB(getConnectionFromTrunk)
 import Database.HDBC(toSql,fromSql,withTransaction,prepare,execute,fetchRow)
 import Database.HDBC.Sqlite3(Connection)
-import System.Console.CmdArgs
+import System.Environment(getArgs)
 import Data.Maybe
 import Control.Monad(void)
-
-data ManageTestGroup = CreateGroup
-                       { groupDescription :: String
-                       , files :: [String]
-                       } |
-                       AppendByDesc
-                       { groupDescription :: String
-                       , files :: [String]
-                       } |
-                       AppendById
-                       { groupId :: Int
-                       , files :: [String]
-                       } |
-                       AmendDesc
-                       { groupId :: Int
-                       , groupDescription :: String
-                       } deriving (Data,Typeable,Show)
-
-createDefaults :: ManageTestGroup
-createDefaults = CreateGroup
-             { groupDescription  = "" &= help "A description of this test group"
-             , files = [] &= args
-             }
-
-appendByDescDefaults :: ManageTestGroup
-appendByDescDefaults = AppendByDesc
-                       { groupDescription = "" &= help "The description of the group to update"
-                       , files = [] &= args
-                       }
-appendByIdDefaults :: ManageTestGroup
-appendByIdDefaults = AppendById
-                       { groupId = 0 &= help "The id of the group to update"
-                       , files = [] &= args
-                       }
-amendDescDefaults :: ManageTestGroup
-amendDescDefaults = AmendDesc
-                    { groupId = 0 &= help "The id of the group to amend"
-                    , groupDescription = "" &= help "The new description"
-                    }
+import System.Exit
 
 stmtMakeGroup :: String
 stmtMakeGroup = "INSERT INTO test_groups (description) VALUES (?)"
@@ -90,22 +52,61 @@ getGroupId desc con = do
   execute stmt [toSql desc]
   fmap (fromSql.head.fromJust) $ fetchRow stmt
 
-dispatch :: ManageTestGroup -> Connection -> IO ()
-dispatch (CreateGroup desc filenames) con = do
+addFiles :: Connection -> Int -> [String] -> IO ()
+addFiles con gid filenames = void $ mapM (addFileToGroup con gid) filenames
+
+createGroup :: [String] -> Connection -> IO ()
+createGroup (desc:files) con = do
   gid <- makeGroup desc con
-  void $ mapM (addFileToGroup con gid) filenames
-dispatch (AppendByDesc desc filenames) con = do
+  addFiles con gid files
+createGroup _ _ = usage $ ExitFailure 2
+
+appendByDesc :: [String] -> Connection -> IO ()
+appendByDesc (desc:files) con = do
   gid <- getGroupId desc con
-  void $ mapM (addFileToGroup con gid) filenames
-  error ".."
-dispatch (AppendById gid filenames) con = do
-  void $ mapM (addFileToGroup con gid) filenames
-  error ".."
-dispatch (AmendDesc gid desc) con = updateDesc gid desc con
+  addFiles con gid files
+appendByDesc _ _ = usage $ ExitFailure 2
+
+appendById :: [String] -> Connection -> IO ()
+appendById (gid:files) con = do
+  addFiles con (read gid) files
+appendById _ _ = usage $ ExitFailure 2
+
+amendDesc :: [String] -> Connection -> IO ()
+amendDesc (gid:desc:rest) con = do
+  updateDesc (read gid) desc con
+amendDesc _ _ = usage $ ExitFailure 2
+
+usage :: ExitCode -> IO ()
+usage exitCode = do
+  putStrLn $ unlines [
+    "managetestgroup [COMMAND] ... [OPTIONS]",
+    "",
+    "managetestgroup help",
+    "  Show this help message",
+    "",
+    "managetestgroup creategroup DESC [FILES]",
+    "  Create a test group with description DESC, containing FILES",
+    "",
+    "managetestgroup appendbydesc DESC [FILES]",
+    "  Add FILES to the test group with description DESC",
+    "",
+    "managetestgroup appendbyid ID [FILES]",
+    "  Add FILES to the test group with numeric identifier ID",
+    "",
+    "managetestgroup amenddesc ID NEWDESC",
+    "  Replace the description of group number ID with NEWDESC" ]
+  exitWith exitCode
 
 main :: IO ()
 main = do
-  opts <- cmdArgs (modes [createDefaults,appendByDescDefaults, appendByIdDefaults,amendDescDefaults])
   con <- getConnectionFromTrunk
-  withTransaction con $ dispatch opts
-
+  (flag:args) <- getArgs
+  case flag of
+    "--help"          -> usage ExitSuccess
+    "help"            -> usage ExitSuccess
+    "-h"              -> usage ExitSuccess
+    "creategroup"     -> withTransaction con $ createGroup args
+    "appendbydesc"    -> withTransaction con $ appendByDesc args
+    "appendbyid"      -> withTransaction con $ appendById args
+    "amenddesc"       -> withTransaction con $ amendDesc args
