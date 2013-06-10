@@ -8,7 +8,7 @@ import Database.HDBC.Statement
 import Database.HDBC.Sqlite3(Connection)
 import System.Environment(getArgs)
 import Data.Maybe
-import Control.Monad(void)
+import Control.Monad(void, join, liftM2)
 import System.Exit
 
 stmtMakeGroup :: String
@@ -99,16 +99,15 @@ usage exitCode = do
     "  Replace the description of group number ID with NEWDESC" ]
   exitWith exitCode
 
+dispatch :: Connection -> [String] -> IO ()
+dispatch _   ("--help":_)          = usage ExitSuccess
+dispatch _   ("help":_)            = usage ExitSuccess
+dispatch _   ("-h":_)              = usage ExitSuccess
+dispatch con ("creategroup":args)  = withTransaction con $ createGroup args
+dispatch con ("appendbydesc":args) = withTransaction con $ appendByDesc args
+dispatch con ("appendbyid":args)   = withTransaction con $ appendById args
+dispatch con ("amenddesc":args)    = withTransaction con $ amendDesc args
+dispatch _   _                     = usage $ ExitFailure 2
+
 main :: IO ()
-main = do
-  con <- getConnectionFromTrunk
-  (flag:args) <- getArgs
-  case flag of
-    "--help"          -> usage ExitSuccess
-    "help"            -> usage ExitSuccess
-    "-h"              -> usage ExitSuccess
-    "creategroup"     -> withTransaction con $ createGroup args
-    "appendbydesc"    -> withTransaction con $ appendByDesc args
-    "appendbyid"      -> withTransaction con $ appendById args
-    "amenddesc"       -> withTransaction con $ amendDesc args
-    _                 -> usage $ ExitFailure 2
+main = join $ (liftM2 dispatch) getConnectionFromTrunk getArgs
