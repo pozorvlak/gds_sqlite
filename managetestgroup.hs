@@ -4,6 +4,7 @@ module Main where
 
 import ResultsDB(getConnectionFromTrunk)
 import Database.HDBC(toSql,fromSql,withTransaction,prepare,execute,fetchRow)
+import Database.HDBC.Statement
 import Database.HDBC.Sqlite3(Connection)
 import System.Environment(getArgs)
 import Data.Maybe
@@ -36,10 +37,8 @@ makeGroup desc connection =
       execute getstmt []
       fmap (fromSql.head.fromJust) $ fetchRow getstmt)
 
-addFileToGroup :: Connection -> Int -> String -> IO ()
-addFileToGroup con gid tid = do
-  stmt <- prepare con stmtAddFileToGroup
-  void $ execute stmt [toSql gid,toSql tid]
+addFileToGroup :: Connection -> Int -> Statement -> String -> IO ()
+addFileToGroup con gid stmt tid = void $ execute stmt [toSql gid,toSql tid]
 
 updateDesc :: Int -> String -> Connection -> IO ()
 updateDesc gid desc con = do
@@ -53,7 +52,9 @@ getGroupId desc con = do
   fmap (fromSql.head.fromJust) $ fetchRow stmt
 
 addFiles :: Connection -> Int -> [String] -> IO ()
-addFiles con gid filenames = void $ mapM (addFileToGroup con gid) filenames
+addFiles con gid filenames = do
+  stmt <- prepare con stmtAddFileToGroup
+  void $ mapM (addFileToGroup con gid stmt) filenames
 
 createGroup :: [String] -> Connection -> IO ()
 createGroup (desc:files) con = do
