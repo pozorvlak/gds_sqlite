@@ -74,7 +74,7 @@ appendById (gid:files) con = do
 appendById _ _ = usage $ ExitFailure 2
 
 amendDesc :: [String] -> Connection -> IO ()
-amendDesc (gid:desc:rest) con = do
+amendDesc (gid:desc:[]) con = do
   updateDesc (read gid) desc con
 amendDesc _ _ = usage $ ExitFailure 2
 
