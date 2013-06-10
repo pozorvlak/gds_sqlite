@@ -51,8 +51,8 @@ getGroupId desc con = do
   execute stmt [toSql desc]
   fmap (fromSql.head.fromJust) $ fetchRow stmt
 
-addFiles :: Connection -> Int -> [String] -> IO ()
-addFiles con gid filenames = do
+addFiles :: Connection -> [String] -> Int -> IO ()
+addFiles con filenames gid = do
   stmt <- prepare con stmtAddFileToGroup
   void $ mapM (addFileToGroup con gid stmt) filenames
 
@@ -81,13 +81,11 @@ dispatch :: [String] -> Connection -> IO ()
 dispatch ("--help":_)                _   = usage ExitSuccess
 dispatch ("help":_)                  _   = usage ExitSuccess
 dispatch ("-h":_)                    _   = usage ExitSuccess
-dispatch ("creategroup":desc:files)  con = do
-  gid <- makeGroup desc con
-  addFiles con gid files
-dispatch ("appendbydesc":desc:files) con = do
-  gid <- getGroupId desc con
-  addFiles con gid files
-dispatch ("appendbyid":gid:files)    con = addFiles con (read gid) files
+dispatch ("creategroup":desc:files)  con =
+  makeGroup desc con >>= addFiles con files
+dispatch ("appendbydesc":desc:files) con =
+  getGroupId desc con >>= addFiles con files
+dispatch ("appendbyid":gid:files)    con = addFiles con files (read gid)
 dispatch ("amenddesc":gid:desc:[])   con = updateDesc (read gid) desc con
 dispatch _                           _   = usage $ ExitFailure 2
 
