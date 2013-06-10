@@ -8,7 +8,7 @@ import Database.HDBC.Statement
 import Database.HDBC.Sqlite3(Connection)
 import System.Environment(getArgs)
 import Data.Maybe
-import Control.Monad(void, join, liftM2)
+import Control.Monad(void)
 import System.Exit
 
 stmtMakeGroup :: String
@@ -56,28 +56,6 @@ addFiles con gid filenames = do
   stmt <- prepare con stmtAddFileToGroup
   void $ mapM (addFileToGroup con gid stmt) filenames
 
-createGroup :: [String] -> Connection -> IO ()
-createGroup (desc:files) con = do
-  gid <- makeGroup desc con
-  addFiles con gid files
-createGroup _ _ = usage $ ExitFailure 2
-
-appendByDesc :: [String] -> Connection -> IO ()
-appendByDesc (desc:files) con = do
-  gid <- getGroupId desc con
-  addFiles con gid files
-appendByDesc _ _ = usage $ ExitFailure 2
-
-appendById :: [String] -> Connection -> IO ()
-appendById (gid:files) con = do
-  addFiles con (read gid) files
-appendById _ _ = usage $ ExitFailure 2
-
-amendDesc :: [String] -> Connection -> IO ()
-amendDesc (gid:desc:[]) con = do
-  updateDesc (read gid) desc con
-amendDesc _ _ = usage $ ExitFailure 2
-
 usage :: ExitCode -> IO ()
 usage exitCode = do
   putStrLn $ unlines [
@@ -99,15 +77,22 @@ usage exitCode = do
     "  Replace the description of group number ID with NEWDESC" ]
   exitWith exitCode
 
-dispatch :: Connection -> [String] -> IO ()
-dispatch _   ("--help":_)          = usage ExitSuccess
-dispatch _   ("help":_)            = usage ExitSuccess
-dispatch _   ("-h":_)              = usage ExitSuccess
-dispatch con ("creategroup":args)  = withTransaction con $ createGroup args
-dispatch con ("appendbydesc":args) = withTransaction con $ appendByDesc args
-dispatch con ("appendbyid":args)   = withTransaction con $ appendById args
-dispatch con ("amenddesc":args)    = withTransaction con $ amendDesc args
-dispatch _   _                     = usage $ ExitFailure 2
+dispatch :: [String] -> Connection -> IO ()
+dispatch ("--help":_)                _   = usage ExitSuccess
+dispatch ("help":_)                  _   = usage ExitSuccess
+dispatch ("-h":_)                    _   = usage ExitSuccess
+dispatch ("creategroup":desc:files)  con = do
+  gid <- makeGroup desc con
+  addFiles con gid files
+dispatch ("appendbydesc":desc:files) con = do
+  gid <- getGroupId desc con
+  addFiles con gid files
+dispatch ("appendbyid":gid:files)    con = addFiles con (read gid) files
+dispatch ("amenddesc":gid:desc:[])   con = updateDesc (read gid) desc con
+dispatch _                           _   = usage $ ExitFailure 2
 
 main :: IO ()
-main = join $ (liftM2 dispatch) getConnectionFromTrunk getArgs
+main = do
+  con <- getConnectionFromTrunk
+  args <- getArgs
+  withTransaction con $ dispatch args
