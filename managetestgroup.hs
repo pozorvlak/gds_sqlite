@@ -90,10 +90,10 @@ usage exitCode = do
     "  Create a test group with description DESC, containing FILES",
     "",
     "managetestgroup appendbydesc DESC [FILES]",
-    "  Add FILES to the test group with description DESC",
+    "  Add FILES to the test group whose description is DESC",
     "",
     "managetestgroup appendbyid ID [FILES]",
-    "  Add FILES to the test group with numeric identifier ID",
+    "  Add FILES to the test group whose numeric identifier is ID",
     "",
     "managetestgroup amenddesc ID NEWDESC",
     "  Replace the description of group number ID with NEWDESC" ]
