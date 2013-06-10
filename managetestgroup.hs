@@ -24,7 +24,7 @@ stmtGetGroupId :: String
 stmtGetGroupId = "SELECT id FROM test_groups WHERE description=?"
 
 stmtGetLatestGroup :: String
-stmtGetLatestGroup = "SELECT id from test_groups ORDER BY id DESC"
+stmtGetLatestGroup = "SELECT id from test_groups ORDER BY id DESC LIMIT 1"
 
 -- Returns the ID of the group we created
 makeGroup :: String -> Connection -> IO Int
