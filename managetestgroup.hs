@@ -111,3 +111,4 @@ main = do
     "appendbydesc"    -> withTransaction con $ appendByDesc args
     "appendbyid"      -> withTransaction con $ appendById args
     "amenddesc"       -> withTransaction con $ amendDesc args
+    _                 -> usage $ ExitFailure 2
